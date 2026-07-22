@@ -33,6 +33,30 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# ---------------- 상단 탭 네비게이션 ----------------
+tabs_container = st.container(key="top_tabs")
+with tabs_container:
+    tab_col1, tab_col2, tab_col3, tab_col4, tab_col5, tab_col_fab = st.columns(6, gap="small")
+    tab_nav_map = [
+        (tab_col1, "🏠", "홈"),
+        (tab_col2, "📅", "캘린더"),
+        (tab_col3, "🧾", "내역"),
+        (tab_col4, "📊", "통계"),
+        (tab_col5, "⚙️", "설정"),
+    ]
+    for col, icon, label in tab_nav_map:
+        with col:
+            active = st.session_state["current_tab"] == label
+            if st.button(f"{icon}\n{label}", use_container_width=True, key=f"tab_{label}",
+                         type="primary" if active else "secondary"):
+                st.session_state["current_tab"] = label
+                st.rerun()
+    with tab_col_fab:
+        if st.button("➕", use_container_width=True, key="tab_add", type="primary"):
+            st.session_state["show_modal"] = not st.session_state["show_modal"]
+            st.rerun()
+st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+
 
 # ---------------- 내역 추가 모달 ----------------
 def render_add_modal():
@@ -126,33 +150,35 @@ if st.session_state["current_tab"] == "캘린더":
         day_summary[d][tx["tx_type"]] += tx["amount"]
 
     days_kr = ["일", "월", "화", "수", "목", "금", "토"]
-    header_cols = st.columns(7)
-    for i, d in enumerate(days_kr):
-        cls = "sun" if i == 0 else ("sat" if i == 6 else "weekday")
-        header_cols[i].markdown(f"<div style='text-align:center; font-size:12px; font-weight:800;' class='{cls}'>{d}</div>", unsafe_allow_html=True)
+    cal_grid = st.container(key="calendar_grid")
+    with cal_grid:
+        header_cols = st.columns(7, gap="small")
+        for i, d in enumerate(days_kr):
+            cls = "sun" if i == 0 else ("sat" if i == 6 else "weekday")
+            header_cols[i].markdown(f"<div style='text-align:center; font-size:12px; font-weight:800;' class='{cls}'>{d}</div>", unsafe_allow_html=True)
 
-    cal_matrix = calendar.monthcalendar(cy, cm)
-    for week in cal_matrix:
-        cols = st.columns(7)
-        for i, day_num in enumerate(week):
-            with cols[i]:
-                if day_num == 0:
-                    st.markdown("<div style='height:70px;'></div>", unsafe_allow_html=True)
-                    continue
-                this_date = date(cy, cm, day_num)
-                is_selected = st.session_state["selected_date"] == this_date
-                btn_type = "primary" if is_selected else "secondary"
-                if st.button(str(day_num), key=f"day_{cy}_{cm}_{day_num}", type=btn_type):
-                    st.session_state["selected_date"] = this_date
-                    st.rerun()
-                info = day_summary.get(day_num, {"수입": 0, "지출": 0})
-                pills = ""
-                if info["수입"] > 0:
-                    pills += f"<div class='cal-pill income'>+{info['수입']//1000}k</div>"
-                if info["지출"] > 0:
-                    pills += f"<div class='cal-pill expense'>-{info['지출']//1000}k</div>"
-                dot = "today-dot" if this_date == today else ""
-                st.markdown(f"<div class='cal-day-summary {dot}'>{pills}</div>", unsafe_allow_html=True)
+        cal_matrix = calendar.monthcalendar(cy, cm)
+        for week in cal_matrix:
+            cols = st.columns(7, gap="small")
+            for i, day_num in enumerate(week):
+                with cols[i]:
+                    if day_num == 0:
+                        st.markdown("<div style='height:60px;'></div>", unsafe_allow_html=True)
+                        continue
+                    this_date = date(cy, cm, day_num)
+                    is_selected = st.session_state["selected_date"] == this_date
+                    btn_type = "primary" if is_selected else "secondary"
+                    if st.button(str(day_num), key=f"day_{cy}_{cm}_{day_num}", type=btn_type):
+                        st.session_state["selected_date"] = this_date
+                        st.rerun()
+                    info = day_summary.get(day_num, {"수입": 0, "지출": 0})
+                    pills = ""
+                    if info["수입"] > 0:
+                        pills += f"<div class='cal-pill income'>+{info['수입']//1000}k</div>"
+                    if info["지출"] > 0:
+                        pills += f"<div class='cal-pill expense'>-{info['지출']//1000}k</div>"
+                    dot = "today-dot" if this_date == today else ""
+                    st.markdown(f"<div class='cal-day-summary {dot}'>{pills}</div>", unsafe_allow_html=True)
 
     sel = st.session_state["selected_date"]
     target_date_str = sel.strftime("%Y-%m-%d")
@@ -383,25 +409,4 @@ elif st.session_state["current_tab"] == "설정":
     else:
         st.markdown('<div class="card"><div class="empty-state">내보낼 거래 내역이 없어요</div></div>', unsafe_allow_html=True)
 
-st.markdown("<div style='height:44px;'></div>", unsafe_allow_html=True)
-
-# ---------------- 하단 고정 네비게이션 ----------------
-col_nav1, col_nav2, col_nav3, col_nav4, col_nav5, col_fab = st.columns(6)
-nav_map = [
-    (col_nav1, "🏠", "홈"),
-    (col_nav2, "📅", "캘린더"),
-    (col_nav3, "🧾", "내역"),
-    (col_nav4, "📊", "통계"),
-    (col_nav5, "⚙️", "설정"),
-]
-for col, icon, label in nav_map:
-    with col:
-        active = st.session_state["current_tab"] == label
-        if st.button(f"{icon}\n{label}" if active else f"{icon} {label}", use_container_width=True,
-                     type="primary" if active else "secondary"):
-            st.session_state["current_tab"] = label
-            st.rerun()
-with col_fab:
-    if st.button("➕", type="primary", use_container_width=True):
-        st.session_state["show_modal"] = not st.session_state["show_modal"]
-        st.rerun()
+st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
