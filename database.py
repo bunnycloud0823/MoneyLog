@@ -28,6 +28,7 @@ def init_db():
         type TEXT,
         major TEXT,
         minor TEXT,
+        icon TEXT DEFAULT '🍔',
         UNIQUE(type, major, minor)
     )
     """)
@@ -79,12 +80,14 @@ def init_db():
     cursor.execute("SELECT COUNT(*) FROM categories")
     if cursor.fetchone()[0] == 0:
         default_cats = [
-            ('지출', '식비', '아침'), ('지출', '식비', '점심'), ('지출', '식비', '저녁'),
-            ('지출', '식비', '카페'), ('지출', '식비', '배달'), ('지출', '교통', '대중교통'),
-            ('지출', '교통', '택시'), ('지출', '주거/통신', '월세'), ('지출', '주거/통신', '통신비'),
-            ('수입', '급여', '월급'), ('수입', '부수입', '이자'), ('이체', '이체', '계좌이체')
+            ('지출', '식비', '외식', '🍔'), ('지출', '식비', '배달', '🥡'), ('지출', '식비', '카페', '☕'), ('지출', '식비', '장보기', '🛒'),
+            ('지출', '교통', '대중교통', '🚌'), ('지출', '교통', '택시', '🚕'), ('지출', '교통', '주유', '⛽'),
+            ('지출', '쇼핑', '의류', '🛍️'), ('지출', '쇼핑', '생필품', '🧻'), ('지출', '의료', '병원', '🏥'), ('지출', '의료', '약국', '💊'),
+            ('지출', '여가', '영화/문화', '🎮'), ('지출', '여가', '여행', '✈️'), ('지출', '주거', '월세', '🏠'), ('지출', '주거', '공과금', '💡'),
+            ('수입', '급여', '월급', '💰'), ('수입', '부수입', '이자/투자', '📈'), ('수입', '용돈', '기타수입', '🎁'),
+            ('이체', '이체', '계좌이체', '🔄')
         ]
-        cursor.executemany("INSERT OR IGNORE INTO categories (type, major, minor) VALUES (?, ?, ?)", default_cats)
+        cursor.executemany("INSERT OR IGNORE INTO categories (type, major, minor, icon) VALUES (?, ?, ?, ?)", default_cats)
         
     cursor.execute("SELECT COUNT(*) FROM payment_methods")
     if cursor.fetchone()[0] == 0:
@@ -219,10 +222,21 @@ def get_categories(trans_type=None):
     conn.close()
     return df
 
-def add_category(trans_type, major, minor):
+def get_category_icon(major, minor=None):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT OR IGNORE INTO categories (type, major, minor) VALUES (?, ?, ?)", (trans_type, major, minor))
+    if minor:
+        cursor.execute("SELECT icon FROM categories WHERE major = ? AND minor = ?", (major, minor))
+    else:
+        cursor.execute("SELECT icon FROM categories WHERE major = ? LIMIT 1", (major,))
+    row = cursor.fetchone()
+    conn.close()
+    return row[0] if row and row[0] else "🏷️"
+
+def add_category(trans_type, major, minor, icon="🍔"):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR IGNORE INTO categories (type, major, minor, icon) VALUES (?, ?, ?, ?)", (trans_type, major, minor, icon))
     conn.commit()
     conn.close()
 
