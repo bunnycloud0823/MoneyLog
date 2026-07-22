@@ -18,6 +18,8 @@ if 'current_tab' not in st.session_state:
     st.session_state['current_tab'] = 'Home'
 if 'selected_date' not in st.session_state:
     st.session_state['selected_date'] = datetime.today().day
+if 'selected_year_month' not in st.session_state:
+    st.session_state['selected_year_month'] = datetime.today().strftime("%Y-%m")
 
 # --- [상단 고정 헤더] ---
 st.markdown(f"""
@@ -28,7 +30,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- [콘텐츠 영역 (스크롤 가능)] ---
-# Streamlit 네이티브 컴포넌트를 사용하여 모든 기능(버튼, 입력 등)이 정상 작동하도록 구성합니다.
 if st.session_state['current_tab'] == 'Home':
     # 자산 요약 카드 UI
     st.markdown("""
@@ -38,7 +39,7 @@ if st.session_state['current_tab'] == 'Home':
     </div>
     """, unsafe_allow_html=True)
 
-    # 캘린더 카드 UI
+    # 캘린더 카드 UI (이미지 참고: 일요일 분홍/빨강, 토요일 파랑, 선택된 날짜 원형 분홍 하이라이트)
     now = datetime.now()
     year, month = now.year, now.month
     cal = calendar.monthcalendar(year, month)
@@ -63,6 +64,7 @@ if st.session_state['current_tab'] == 'Home':
                 elif i == 6: 
                     color_class = "sat"
                 
+                # 선택된 날짜 확인 및 하이라이트 적용
                 if day == st.session_state['selected_date']:
                     calendar_html += f'<td><span class="selected-day">{day}</span></td>'
                 else:
@@ -72,9 +74,18 @@ if st.session_state['current_tab'] == 'Home':
     calendar_html += '</tbody></table></div>'
     st.markdown(calendar_html, unsafe_allow_html=True)
 
+    # 날짜별 내역 선택 버튼들 (인터랙션 연동용)
+    st.markdown("<div style='font-size: 13px; font-weight: 600; color: #6b7684; margin-bottom: 6px;'>날짜 선택하기</div>", unsafe_allow_html=True)
+    date_cols = st.columns(7)
+    for i in range(1, 8):  # 예시로 1일부터 7일까지 인터랙션 버튼 배치
+        with date_cols[(i-1)%7]:
+            if st.button(f"{i}일", key=f"date_btn_{i}", use_container_width=True):
+                st.session_state['selected_date'] = i
+                st.rerun()
+
     # 최근 지출 내역 카드
     st.markdown("""
-    <div class="card">
+    <div class="card" style="margin-top: 16px;">
         <div style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">최근 지출</div>
         <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #F0F2F5;">
             <div>
@@ -110,28 +121,28 @@ elif st.session_state['current_tab'] == 'Settings':
     </div>
     """, unsafe_allow_html=True)
 
-# --- [하단 네비게이션 바 및 상호작용 영역] ---
-# Streamlit의 네이티브 버튼을 하단 고정 영역 위에 배치하여 모든 기능이 정상 동작하도록 보장합니다.
-st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
+# --- [하단 네비게이션 바 고정 영역] ---
+st.markdown("<div style='height: 50px;'></div>", unsafe_allow_html=True)
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    if st.button("홈", use_container_width=True):
+# 하단 탭 전환 버튼들을 나란히 배치하여 모바일 네비게이션 바 구현
+nav_col1, nav_col2, nav_col3, nav_col4 = st.columns(4)
+with nav_col1:
+    if st.button("홈", use_container_width=True, key="nav_home"):
         st.session_state['current_tab'] = 'Home'
         st.rerun()
-with col2:
-    if st.button("가계부", use_container_width=True):
+with nav_col2:
+    if st.button("가계부", use_container_width=True, key="nav_account"):
         st.session_state['current_tab'] = 'Account'
         st.rerun()
-with col3:
-    if st.button("통계", use_container_width=True):
+with nav_col3:
+    if st.button("통계", use_container_width=True, key="nav_stats"):
         st.session_state['current_tab'] = 'Stats'
         st.rerun()
-with col4:
-    if st.button("설정", use_container_width=True):
+with nav_col4:
+    if st.button("설정", use_container_width=True, key="nav_settings"):
         st.session_state['current_tab'] = 'Settings'
         st.rerun()
 
-# 지출 추가 버튼 (네이티브 버튼 연동)
-if st.button("지출/수입 추가하기", use_container_width=True, type="primary"):
+# 지출 추가 플로팅 버튼
+if st.button("+ 지출 추가", use_container_width=True, type="primary"):
     st.toast("지출 추가 창이 열립니다.")
