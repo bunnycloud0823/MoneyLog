@@ -5,6 +5,8 @@ DB_NAME = "moneylog.db"
 
 EXPENSE_CATEGORIES = ["식비", "교통", "쇼핑", "의료", "여가", "주거", "기타"]
 INCOME_CATEGORIES = ["급여", "보너스", "용돈", "기타"]
+ASSET_TYPES = ["현금", "은행", "카드", "적금", "투자", "대출"]
+ASSET_ICONS = {"현금": "💵", "은행": "🏦", "카드": "💳", "적금": "🐷", "투자": "📈", "대출": "🧾"}
 
 CATEGORY_ICONS = {
     "식비": "🍔", "교통": "🚗", "쇼핑": "🛍️", "의료": "💊",
@@ -36,6 +38,23 @@ def init_db():
                 amount INTEGER NOT NULL,
                 tx_type TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS assets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                asset_type TEXT NOT NULL,
+                balance INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS budgets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                year_month TEXT NOT NULL,
+                category TEXT NOT NULL,
+                amount INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(year_month, category)
             )
         """)
 
@@ -127,3 +146,57 @@ def get_monthly_trend(year):
         if m in trend:
             trend[m][row["tx_type"]] = row["total"] or 0
     return trend
+
+
+# ---------------- 자산 (계좌) ----------------
+def add_asset(name, asset_type, balance=0):
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO assets (name, asset_type, balance) VALUES (?, ?, ?)",
+            (name, asset_type, int(balance)),
+        )
+
+
+def get_assets():
+    with get_connection() as conn:
+        rows = conn.execute("SELECT * FROM assets ORDER BY id ASC").fetchall()
+    return [dict(row) for row in rows]
+
+
+def update_asset_balance(asset_id, balance):
+    with get_connection() as conn:
+        conn.execute("UPDATE assets SET balance = ? WHERE id = ?", (int(balance), asset_id))
+
+
+def delete_asset(asset_id):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM assets WHERE id = ?", (asset_id,))
+
+
+def get_total_assets():
+    with get_connection() as conn:
+        row = conn.execute("SELECT SUM(balance) as total FROM assets").fetchone()
+    return (row["total"] or 0) if row else 0
+
+
+# ---------------- 예산 ----------------
+def set_budget(year_month, category, amount):
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO budgets (year_month, category, amount) VALUES (?, ?, ?)
+            ON CONFLICT(year_month, category) DO UPDATE SET amount = excluded.amount
+        """, (year_month, category, int(amount)))
+
+
+def get_budgets(year_month):
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM budgets WHERE year_month = ? ORDER BY id ASC",
+            (year_month,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def delete_budget(budget_id):
+    with get_connection() as conn:
+        conn.execute("DELETE FROM budgets WHERE id = ?", (budget_id,))
