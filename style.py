@@ -1,3 +1,4 @@
+# style.py
 import streamlit as st
 
 def apply_mobile_app_style():
