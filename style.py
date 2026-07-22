@@ -86,14 +86,52 @@ header, footer, #MainMenu { visibility: hidden; }
     background: #FF9A76; margin: 2px auto 0 auto;
 }
 
-/* 캘린더 날짜 버튼 (streamlit button 재활용) */
-div[data-testid="stVerticalBlock"] div.stButton > button {
-    width: 34px; height: 34px; min-width: 34px; padding: 0; margin: 0 auto;
-    border-radius: 50%; font-weight: 700; font-size: 13px;
-    border: 1px solid transparent; background: transparent; color: #2B2320; box-shadow: none;
+/* ---- 모바일 대응: Streamlit의 컬럼이 좁은 화면에서 세로로 쌓이는 것을 방지 ---- */
+[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    align-items: flex-start;
 }
-div[data-testid="stVerticalBlock"] div.stButton > button:hover {
+[data-testid="stHorizontalBlock"] [data-testid="stColumn"] {
+    min-width: 0 !important;
+    width: 100% !important;
+    flex: 1 1 0 !important;
+}
+
+/* 상단 탭 네비게이션 버튼 */
+.st-key-top_tabs div.stButton > button {
+    padding: 6px 2px;
+    font-size: 10.5px;
+    line-height: 1.3;
+    height: 46px;
+    white-space: pre-line;
+}
+
+/* 캘린더 날짜 버튼은 더 작고 동그랗게 */
+.st-key-calendar_grid div.stButton > button {
+    width: 100%;
+    max-width: 36px;
+    height: 32px;
+    min-width: 0;
+    padding: 0;
+    margin: 0 auto;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 12.5px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #2B2320;
+    box-shadow: none;
+}
+.st-key-calendar_grid div.stButton > button:hover {
     background: #FFF1EE; border-color: #FFD4CB; color: #FF5E62;
+}
+
+@media (max-width: 480px) {
+    .main .block-container { padding-left: 10px !important; padding-right: 10px !important; }
+    .cal-pill { font-size: 8.5px !important; }
 }
 
 /* 거래 내역 행 */
