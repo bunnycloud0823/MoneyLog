@@ -171,8 +171,13 @@ if st.session_state["current_tab"] == "캘린더":
 elif st.session_state["current_tab"] == "홈":
     summary = db.get_month_summary(curr_year, curr_month)
     bal_str = f"+{summary['잔액']:,}원" if summary["잔액"] >= 0 else f"{summary['잔액']:,}원"
+    total_assets = db.get_total_assets()
 
     st.markdown(f"""
+    <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px;">
+        <div style="font-size:13.5px; font-weight:700; color:#A79E95;">🐷 총 자산</div>
+        <div style="font-size:17px; font-weight:900; color:#2B2320;">{total_assets:,}원</div>
+    </div>
     <div class="gradient-card">
         <div class="gradient-title">{curr_month}월 잔액</div>
         <div class="gradient-balance">{bal_str}</div>
@@ -215,6 +220,30 @@ elif st.session_state["current_tab"] == "홈":
             </div>""" for cat in cat_expenses)
         st.markdown(boxes, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
+    ym = f"{curr_year:04d}-{curr_month:02d}"
+    budgets = db.get_budgets(ym)
+    st.markdown('<div style="margin:22px 0 10px 0; font-size:15.5px; font-weight:800; color:#2B2320;">🎯 예산 진행률</div>', unsafe_allow_html=True)
+    if not budgets:
+        st.markdown('<div class="card"><div class="empty-state">설정에서 이번 달 예산을 등록해보세요</div></div>', unsafe_allow_html=True)
+    else:
+        used_map = {c["category"]: c["total"] for c in cat_expenses}
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        for b in budgets:
+            used = used_map.get(b["category"], 0)
+            rate = min(int((used / b["amount"]) * 100), 100) if b["amount"] > 0 else 0
+            icon = db.CATEGORY_ICONS.get(b["category"], "📦")
+            over = used > b["amount"]
+            st.markdown(f"""
+            <div style="margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:700; margin-bottom:5px; color:{'#FF5E62' if over else '#2B2320'};">
+                    <span>{icon} {b['category']}</span>
+                    <span>{used:,} / {b['amount']:,}원</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.progress(rate / 100.0)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     recent_txs = db.get_all_transactions(limit=5)
     st.markdown('<div style="margin:22px 0 10px 0; font-size:15.5px; font-weight:800; color:#2B2320;">🧾 최근 내역</div><div class="card">', unsafe_allow_html=True)
@@ -285,15 +314,85 @@ elif st.session_state["current_tab"] == "통계":
         st.markdown(rows, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
+# ================= 5. 설정 화면 (자산 · 예산 · 백업) =================
+elif st.session_state["current_tab"] == "설정":
+    st.markdown('<div style="font-size:16px; font-weight:800; margin-bottom:10px;">🐷 자산 계좌</div>', unsafe_allow_html=True)
+    assets = db.get_assets()
+    if not assets:
+        st.markdown('<div class="card"><div class="empty-state">등록된 자산이 없어요</div></div>', unsafe_allow_html=True)
+    else:
+        for a in assets:
+            st.markdown(f"""
+            <div class="card" style="padding:14px 18px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size:14px; font-weight:800;">{db.ASSET_ICONS.get(a['asset_type'],'💼')} {a['name']}
+                        <span style="font-size:11px; color:#A79E95; font-weight:600;">({a['asset_type']})</span></div>
+                    <div style="font-size:14.5px; font-weight:900; color:#2B2320;">{a['balance']:,}원</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            ac1, ac2 = st.columns([3, 1])
+            with ac1:
+                new_bal = st.number_input("잔액 수정", value=int(a["balance"]), step=1000, key=f"bal_{a['id']}", label_visibility="collapsed")
+                if new_bal != a["balance"]:
+                    db.update_asset_balance(a["id"], new_bal)
+                    st.rerun()
+            with ac2:
+                if st.button("삭제", key=f"del_asset_{a['id']}", use_container_width=True):
+                    db.delete_asset(a["id"])
+                    st.rerun()
+
+    with st.expander("➕ 자산 계좌 추가"):
+        a_name = st.text_input("계좌 이름", placeholder="예: 카카오뱅크")
+        a_type = st.selectbox("종류", db.ASSET_TYPES, format_func=lambda t: f"{db.ASSET_ICONS.get(t,'💼')} {t}")
+        a_bal = st.number_input("초기 잔액", value=0, step=10000)
+        if st.button("계좌 추가하기", type="primary", use_container_width=True) and a_name.strip():
+            db.add_asset(a_name.strip(), a_type, a_bal)
+            st.rerun()
+
+    st.markdown('<div style="font-size:16px; font-weight:800; margin:22px 0 10px 0;">🎯 이번 달 예산</div>', unsafe_allow_html=True)
+    ym = f"{curr_year:04d}-{curr_month:02d}"
+    budgets = db.get_budgets(ym)
+    if budgets:
+        for b in budgets:
+            bc1, bc2 = st.columns([4, 1])
+            with bc1:
+                st.markdown(f"<div style='padding-top:8px; font-size:13.5px; font-weight:700;'>{db.CATEGORY_ICONS.get(b['category'],'📦')} {b['category']} · {b['amount']:,}원</div>", unsafe_allow_html=True)
+            with bc2:
+                if st.button("삭제", key=f"del_budget_{b['id']}", use_container_width=True):
+                    db.delete_budget(b["id"])
+                    st.rerun()
+
+    with st.expander("➕ 예산 설정하기"):
+        b_cat = st.selectbox("카테고리", db.EXPENSE_CATEGORIES, format_func=lambda c: f"{db.CATEGORY_ICONS.get(c,'📦')} {c}")
+        b_amt = st.number_input("이번 달 예산 (원)", min_value=0, step=10000, value=100000)
+        if st.button("예산 저장", type="primary", use_container_width=True):
+            db.set_budget(ym, b_cat, b_amt)
+            st.rerun()
+
+    st.markdown('<div style="font-size:16px; font-weight:800; margin:22px 0 10px 0;">💾 데이터 백업</div>', unsafe_allow_html=True)
+    all_txs = db.get_all_transactions()
+    if all_txs:
+        import csv, io
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=list(all_txs[0].keys()))
+        writer.writeheader()
+        writer.writerows(all_txs)
+        st.download_button("📥 CSV로 내보내기", data=buf.getvalue().encode("utf-8-sig"),
+                            file_name="moneylog_backup.csv", mime="text/csv", use_container_width=True)
+    else:
+        st.markdown('<div class="card"><div class="empty-state">내보낼 거래 내역이 없어요</div></div>', unsafe_allow_html=True)
+
 st.markdown("<div style='height:44px;'></div>", unsafe_allow_html=True)
 
 # ---------------- 하단 고정 네비게이션 ----------------
-col_nav1, col_nav2, col_nav3, col_nav4, col_fab = st.columns(5)
+col_nav1, col_nav2, col_nav3, col_nav4, col_nav5, col_fab = st.columns(6)
 nav_map = [
     (col_nav1, "🏠", "홈"),
     (col_nav2, "📅", "캘린더"),
     (col_nav3, "🧾", "내역"),
     (col_nav4, "📊", "통계"),
+    (col_nav5, "⚙️", "설정"),
 ]
 for col, icon, label in nav_map:
     with col:
