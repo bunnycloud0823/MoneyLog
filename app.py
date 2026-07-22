@@ -28,6 +28,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- [콘텐츠 영역 (스크롤 가능)] ---
+# Streamlit 네이티브 컴포넌트를 사용하여 모든 기능(버튼, 입력 등)이 정상 작동하도록 구성합니다.
 if st.session_state['current_tab'] == 'Home':
     # 자산 요약 카드 UI
     st.markdown("""
@@ -37,7 +38,7 @@ if st.session_state['current_tab'] == 'Home':
     </div>
     """, unsafe_allow_html=True)
 
-    # 캘린더 카드 UI (클릭한 날짜 또는 당일만 색상 강조)
+    # 캘린더 카드 UI
     now = datetime.now()
     year, month = now.year, now.month
     cal = calendar.monthcalendar(year, month)
@@ -109,24 +110,28 @@ elif st.session_state['current_tab'] == 'Settings':
     </div>
     """, unsafe_allow_html=True)
 
-# --- [우측 하단 고정 플로팅 버튼 (FAB)] ---
-st.markdown("""
-<a href="?action=add" target="_self" class="fab-button">+</a>
-""", unsafe_allow_html=True)
+# --- [하단 네비게이션 바 및 상호작용 영역] ---
+# Streamlit의 네이티브 버튼을 하단 고정 영역 위에 배치하여 모든 기능이 정상 동작하도록 보장합니다.
+st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
 
-# --- [하단 네비게이션 바 고정] ---
-st.markdown("""
-<div class="bottom-nav-container">
-    <a href="?tab=Home" target="_self" style="text-decoration: none; color: #3182F6; font-weight: 700; font-size: 13px;">Home</a>
-    <a href="?tab=Account" target="_self" style="text-decoration: none; color: #8B95A1; font-weight: 600; font-size: 13px;">가계부</a>
-    <a href="?tab=Stats" target="_self" style="text-decoration: none; color: #8B95A1; font-weight: 600; font-size: 13px;">통계</a>
-    <a href="?tab=Settings" target="_self" style="text-decoration: none; color: #8B95A1; font-weight: 600; font-size: 13px;">설정</a>
-</div>
-""", unsafe_allow_html=True)
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    if st.button("홈", use_container_width=True):
+        st.session_state['current_tab'] = 'Home'
+        st.rerun()
+with col2:
+    if st.button("가계부", use_container_width=True):
+        st.session_state['current_tab'] = 'Account'
+        st.rerun()
+with col3:
+    if st.button("통계", use_container_width=True):
+        st.session_state['current_tab'] = 'Stats'
+        st.rerun()
+with col4:
+    if st.button("설정", use_container_width=True):
+        st.session_state['current_tab'] = 'Settings'
+        st.rerun()
 
-# --- [쿼리 파라미터 처리] ---
-query_params = st.query_params
-if 'tab' in query_params:
-    st.session_state['current_tab'] = query_params['tab']
-if 'action' in query_params and query_params['action'] == 'add':
-    st.toast("지출 추가 모달을 엽니다.")
+# 지출 추가 버튼 (네이티브 버튼 연동)
+if st.button("지출/수입 추가하기", use_container_width=True, type="primary"):
+    st.toast("지출 추가 창이 열립니다.")
