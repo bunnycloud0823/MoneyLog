@@ -28,10 +28,30 @@ def init_db():
         type TEXT,
         major TEXT,
         minor TEXT,
-        icon TEXT DEFAULT '🍔',
+        icon TEXT DEFAULT '🏷️',
         UNIQUE(type, major, minor)
     )
     """)
+    
+    # [자동 마이그레이션] 기존에 생성된 DB 파일에 icon 컬럼이 없는 경우 자동으로 컬럼을 추가합니다.
+    try:
+        cursor.execute("ALTER TABLE categories ADD COLUMN icon TEXT DEFAULT '🏷️'")
+        # 기존에 저장된 기본 카테고리들에 아이콘을 자동으로 업데이트해 줍니다.
+        default_icons = [
+            ('🍔', '식비', '외식'), ('🥡', '식비', '배달'), ('☕', '식비', '카페'), ('🛒', '식비', '장보기'),
+            ('🍔', '식비', '아침'), ('🍔', '식비', '점심'), ('🍔', '식비', '저녁'),
+            ('🚌', '교통', '대중교통'), ('🚕', '교통', '택시'), ('⛽', '교통', '주유'),
+            ('🛍️', '쇼핑', '의류'), ('🧻', '쇼핑', '생필품'), ('🏥', '의료', '병원'), ('💊', '의료', '약국'),
+            ('🎮', '여가', '영화/문화'), ('✈️', '여가', '여행'), ('🏠', '주거', '월세'), ('💡', '주거', '공과금'),
+            ('🏠', '주거/통신', '월세'), ('💡', '주거/통신', '통신비'),
+            ('💰', '급여', '월급'), ('📈', '부수입', '이자/투자'), ('📈', '부수입', '이자'), ('🎁', '용돈', '기타수입'),
+            ('🔄', '이체', '계좌이체')
+        ]
+        for icon, major, minor in default_icons:
+            cursor.execute("UPDATE categories SET icon = ? WHERE major = ? AND minor = ? AND (icon IS NULL OR icon = '🏷️')", (icon, major, minor))
+    except sqlite3.OperationalError:
+        # 이미 icon 컬럼이 존재하면 안전하게 무시합니다.
+        pass
     
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS payment_methods (
@@ -225,18 +245,25 @@ def get_categories(trans_type=None):
 def get_category_icon(major, minor=None):
     conn = get_connection()
     cursor = conn.cursor()
-    if minor:
-        cursor.execute("SELECT icon FROM categories WHERE major = ? AND minor = ?", (major, minor))
-    else:
-        cursor.execute("SELECT icon FROM categories WHERE major = ? LIMIT 1", (major,))
-    row = cursor.fetchone()
-    conn.close()
-    return row[0] if row and row[0] else "🏷️"
+    try:
+        if minor:
+            cursor.execute("SELECT icon FROM categories WHERE major = ? AND minor = ?", (major, minor))
+        else:
+            cursor.execute("SELECT icon FROM categories WHERE major = ? LIMIT 1", (major,))
+        row = cursor.fetchone()
+        return row[0] if row and row[0] else "🏷️"
+    except Exception:
+        return "🏷️"
+    finally:
+        conn.close()
 
-def add_category(trans_type, major, minor, icon="🍔"):
+def add_category(trans_type, major, minor, icon="🏷️"):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT OR IGNORE INTO categories (type, major, minor, icon) VALUES (?, ?, ?, ?)", (trans_type, major, minor, icon))
+    try:
+        cursor.execute("INSERT OR IGNORE INTO categories (type, major, minor, icon) VALUES (?, ?, ?, ?)", (trans_type, major, minor, icon))
+    except sqlite3.OperationalError:
+        cursor.execute("INSERT OR IGNORE INTO categories (type, major, minor) VALUES (?, ?, ?)", (trans_type, major, minor))
     conn.commit()
     conn.close()
 
